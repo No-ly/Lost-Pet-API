@@ -1,51 +1,41 @@
-import { 
-  Column, 
-  CreateDateColumn, 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  UpdateDateColumn,
-  Index // <-- 1. No olvides importar Index
-} from 'typeorm'; 
-import type { Point } from 'geojson'; // Excelente uso de 'import type'
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import type { Point } from 'geojson';
+ 
+@Entity('LOST_PET')
+export class LostPet{
+    @PrimaryGeneratedColumn()
+    id!: number
 
-@Entity('LOST_PET') 
-export class LostPet { 
-  @PrimaryGeneratedColumn('uuid') 
-  id!: string; 
+    @Column()
+    type!: string;
 
-  @Column({ type: 'varchar', length: 100 }) 
-  type!: string; 
+    @Column()
+    name!: string;
 
-  @Column({ type: 'varchar', length: 100 }) 
-  name!: string; 
+    @Column({
+        type: 'geometry',
+        spatialFeatureType: 'Point',
+        srid: 4326
+    })
+    location!: Point
 
-  // <-- 2. Aquí está el índice espacial crítico para PostGIS
-  @Index({ spatial: true })
-  @Column({ 
-    type: 'geometry', 
-    spatialFeatureType: 'Point', 
-    srid: 4326, 
-  }) 
-  location!: Point; 
+    @Column()
+    phone!: string;
 
-  @Column({ type: 'varchar', length: 20 }) 
-  phone!: string; 
+    @Column()
+    race!: string;
 
-  @Column({ type: 'varchar', length: 100 }) 
-  race!: string; 
+    @Column()
+    age!: number;
 
-  @Column({ type: 'int' }) 
-  age!: number; 
+    @Column()
+    color!: string;
 
-  @Column({ type: 'varchar', length: 50 }) 
-  color!: string; 
+    @Column()
+    ownerName!: string;
 
-  @Column({ type: 'varchar', length: 150 }) 
-  ownerName!: string; 
-
-  @CreateDateColumn() 
-  createdAt!: Date; 
-
-  @UpdateDateColumn() 
-  updatedAt!: Date; 
+    @Column({
+        nullable:true
+    })
+    image?: string;
 }

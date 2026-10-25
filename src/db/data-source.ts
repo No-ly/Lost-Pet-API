@@ -4,7 +4,6 @@ import { envs } from '../config/envs';
 import { LostPet } from '../lost-pets/entities/lost-pet.entity';
 import { User } from '../users/entities/user.entity';
 import { PendingEmail } from '../email/entities/pending-email.entity';
-import 'dotenv/config';
 
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
@@ -14,8 +13,8 @@ export const dataSourceOptions: DataSourceOptions = {
   password: envs.DB_PASSWORD,
   database: envs.DB_NAME,
   entities: [LostPet, User, PendingEmail],
-  // Usamos barras diagonales '/' para compatibilidad total con Windows y TypeScript
-  migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
+  // join(__dirname) funciona igual en src (ts) y en dist (js), y en Windows
+  migrations: [join(__dirname, 'migrations', '[0-9]*-*{.ts,.js}')],
   synchronize: false,
 };
 

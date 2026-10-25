@@ -1,8 +1,8 @@
-import * as env from 'env-var'
-import 'dotenv/config'; //Carga las variables del archivo .env antes de leerlas
+import 'dotenv/config'; // Carga el archivo .env antes de leer las variables
+import * as env from 'env-var';
 
 export const envs = {
-    PORT: env.get('PORT').required().asPortNumber(),
+    PORT: env.get('PORT').default(3000).asPortNumber(),
 
     MAILER_SERVICE: env.get('MAILER_SERVICE').required().asString(),
     MAILER_USER: env.get('MAILER_USER').required().asString(),
@@ -15,5 +15,12 @@ export const envs = {
     DB_HOST: env.get('DB_HOST').required().asString(),
     DB_PORT: env.get('DB_PORT').required().asPortNumber(),
     DB_TYPE: env.get('DB_TYPE').required().asString(),
-    
-}
+
+    REDIS_HOST: env.get('REDIS_HOST').required().asString(),
+    REDIS_PORT: env.get('REDIS_PORT').required().asPortNumber(),
+
+    AWS_BUCKET: env.get('AWS_BUCKET').required().asString(),
+    AWS_REGION: env.get('AWS_REGION').required().asString(),
+
+    JWT_SECRET: env.get('JWT_SECRET').required().asString(),
+};

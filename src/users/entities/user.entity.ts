@@ -1,41 +1,27 @@
-import { 
-  Column, 
-  Entity, 
-  PrimaryGeneratedColumn, 
-  Index // 1. Agregamos el import del índice
-} from 'typeorm'; 
-import type { Point } from 'geojson'; 
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import type { Point } from 'geojson';
 
-@Entity('SYSTEM_USER') 
-export class User { 
-  @PrimaryGeneratedColumn('uuid') 
-  id!: string; 
-
-  @Column({ type: 'varchar', length: 100 }) 
-  name!: string; 
-
-  @Column({ type: 'varchar', length: 100 }) 
-  lastName!: string; 
-
-  @Column({ type: 'varchar', length: 150, unique: true }) 
-  email!: string; 
-
-  @Column({ type: 'varchar', length: 255 }) 
-  password!: string; 
-
-  @Column({ type: 'boolean', default: true }) 
-  isPetAlertEnabled!: boolean; 
-
-  // 2. CORRECCIÓN: Índice GiST para que las búsquedas por radio sean instantáneas
-  @Index({ spatial: true })
-  @Column({ 
-    type: 'geometry', 
-    spatialFeatureType: 'Point', 
-    srid: 4326, 
-    nullable: true, 
-  }) 
-  location!: Point; 
-
-  @Column({ type: 'int', default: 5 }) 
-  radius!: number; 
+@Entity('SYSTEM_USER')
+export class User{
+    //id, name, lastName, email, password, isPetAlertEnabled, location, radius (numero)
+    @PrimaryGeneratedColumn()
+    id!: number;
+    @Column()
+    name!: string;
+    @Column()
+    lastName!: string;
+    @Column()
+    email!: string;
+    @Column()
+    password!: string;
+    @Column()
+    isPetAlertEnabled!: boolean;
+    @Column({
+        type: 'geometry',
+        spatialFeatureType: 'Point',
+        srid: 4326
+    })
+    location?: Point
+    @Column()
+    radius!: number
 }

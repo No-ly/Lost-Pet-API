@@ -1,20 +1,24 @@
-import { Module } from '@nestjs/common'; 
-import { TypeOrmModule } from '@nestjs/typeorm'; 
-import { LostPetsController } from './lost-pets.controller'; 
-import { LostPetsService } from './lost-pets.service'; 
-import { LostPet } from './entities/lost-pet.entity'; 
+import { Module } from '@nestjs/common';
+import { LostPetsController } from './lost-pets.controller';
+import { EmailModule } from '../email/email.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { LostPet } from './entities/lost-pet.entity';
+import { LostPetsService } from './lost-pets.service';
 import { AuthModule } from '../auth/auth.module';
+import { CacheModule } from '../cache/cache.module';
+import { StorageModule } from '../storage/storage.module';
 
-// CORRECCIÓN: Cambiado de 'src/email/email.module' a ruta relativa
-import { EmailModule } from '../email/email.module'; 
-
-@Module({ 
-  imports: [ 
-    TypeOrmModule.forFeature([LostPet]), // Registra el repositorio de LostPet 
-    EmailModule, // Permite inyectar EmailService en LostPetsService
+@Module({
+  imports: [
+    EmailModule,
+    TypeOrmModule.forFeature([
+      LostPet
+    ]),
     AuthModule,
-  ], 
-  controllers: [LostPetsController], 
-  providers: [LostPetsService], 
-}) 
+    CacheModule,
+    StorageModule
+  ],
+  controllers: [LostPetsController],
+  providers: [LostPetsService]
+})
 export class LostPetsModule {}

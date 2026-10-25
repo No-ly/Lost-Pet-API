@@ -1,68 +1,26 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
-import { User } from '../users/entities/user.entity';
-import { RegisterDto } from './dtos/register.dto';
-import { LoginDto } from './dtos/login.dto';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dtos/CreateUserDto';
+import { TokenService } from './token/token.service';
+// GUARDS
 
 @Injectable()
 export class AuthService {
-  constructor(
-    @InjectRepository(User) 
-    private readonly userRepository: Repository<User>,
-    private readonly jwtService: JwtService,
-  ) {}
+    constructor(
+        private userService: UsersService,
+        private tokenService: TokenService
+    ){}
 
-  async register(registerDto: RegisterDto) {
-    // CORRECCIÓN: Cambiamos '...registerDto' por '...rest'
-    const { email, password, lat, lon, ...rest } = registerDto;
-    
-    const existingUser = await this.userRepository.findOneBy({ email }); 
-    if (existingUser) { 
-        throw new BadRequestException('El correo ya está registrado'); 
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = this.userRepository.create({
-        ...rest, // Ahora esta variable sí existe y contiene name, lastName, radius, etc.
-        email, 
-        password: hashedPassword, 
-        location: lat !== undefined && lon !== undefined 
-            ? ({ type: 'Point', coordinates: [lon, lat] } as any) 
-            : undefined, 
-    });
-
-    const savedUser = await this.userRepository.save(user);
-
-    const { password: _, ...userWithoutPassword } = savedUser; 
-    
-    return { 
-        ok: true, 
-        user: userWithoutPassword, 
-        token: this.jwtService.sign({ id: savedUser.id, email: savedUser.email }), 
-    }; 
-  }
-
-    async login(loginDto: LoginDto) { const { email, password } = loginDto;
-
-    const user = await this.userRepository.findOneBy({ email }); 
-    if (!user) { 
-        throw new UnauthorizedException('Credenciales inválidas'); 
+    async login(email:string, password: string){
+        const id = await this.userService.validate(email,password);
+        if(!id) throw new BadRequestException("El email o la contraseña no es válido");
+        const token = await this.tokenService.generate(id);
+        return token;
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password); 
-    if (!isPasswordValid) { 
-        throw new UnauthorizedException('Credenciales inválidas'); 
+    async register(dto: CreateUserDto){
+        const id = await this.userService.create(dto);
+        const token = await this.tokenService.generate(id);
+        return token;
     }
-
-    const { password: _, ...userWithoutPassword } = user; 
-    
-    return { 
-        ok: true,
-        user: userWithoutPassword, 
-        token: this.jwtService.sign({ id: user.id, email: user.email }), 
-    }; 
-} 
 }
