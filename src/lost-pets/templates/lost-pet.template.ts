@@ -1,118 +1,200 @@
 import { envs } from '../../config/envs';
 import { CreateLostPetDto } from '../dtos/lost-pet.dto';
- 
-// Escapa & < > " ' para que los datos del usuario no inyecten HTML en el correo
-const esc = (v: string | number): string =>
-  String(v)
+
+const escapeHtml = (value: string | number): string =>
+  String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-const row = (label: string, value: string) => `
+const formatAge = (age: number): string =>
+  age === 1 ? '1 año' : `${escapeHtml(age)} años`;
+
+const detailRow = (label: string, value: string): string => `
               <tr>
-                <td style="padding:14px 0;border-bottom:1px solid #e3efe6;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:18px;color:#6b8676;text-transform:uppercase;letter-spacing:.6px;">${label}</td>
-                <td align="right" style="padding:14px 0;border-bottom:1px solid #e3efe6;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:22px;color:#143d24;font-weight:bold;">${esc(value)}</td>
+                <td style="padding:12px 20px;border-bottom:1px solid #eef0f4;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a93a5;white-space:nowrap;">${label}</td>
+                <td style="padding:12px 20px;border-bottom:1px solid #eef0f4;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:bold;color:#1b2233;text-align:right;">${value}</td>
               </tr>`;
- 
-export const generateLostPetTemplate = (createLostPetDto: CreateLostPetDto, image:string) => {
-  const { type, race, color } = createLostPetDto;
-  // lat/lon/age llegan como texto en multipart: se fuerzan a número antes de armar URLs
+
+const MAP_WIDTH = 536;
+const MAP_HEIGHT = 240;
+const MAP_ZOOM = 15;
+const PHOTO_WIDTH = 536;
+
+// Mapa estático renderizado a @2x para que se vea nítido en pantallas retina.
+const buildMapImageUrl = (lat: number, lon: number): string =>
+  `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/` +
+  `pin-l+f0326d(${lon},${lat})/${lon},${lat},${MAP_ZOOM}/` +
+  `${MAP_WIDTH}x${MAP_HEIGHT}@2x?access_token=${envs.MAPBOX_TOKEN}`;
+
+export const generateLostPetTemplate = (
+  createLostPetDto: CreateLostPetDto,
+  imageUrl?: string,
+): string => {
+  const { type, name, phone, race, color } = createLostPetDto;
+  // Con multipart/form-data lat, lon y age llegan como texto: se fuerzan a número
+  // antes de armar URLs y de comparar la edad.
   const lat = Number(createLostPetDto.lat);
   const lon = Number(createLostPetDto.lon);
   const age = Number(createLostPetDto.age);
-  const name = esc(createLostPetDto.name);
-  const phone = esc(createLostPetDto.phone);
-  const ageLabel = `${age} ${age === 1 ? 'año' : 'años'}`;
-  const mapboxToken = envs.MAPBOX_TOKEN;
-  const imageUrl = `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/pin-l+1b7a45(${lon},${lat})/${lon},${lat},15/496x240@2x?access_token=${mapboxToken}`;
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+
+  const safeName = escapeHtml(name);
+  const safeType = escapeHtml(type);
+  const safePhone = escapeHtml(phone);
+  const phoneHref = escapeHtml(String(phone).replace(/[^\d+]/g, ''));
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lon}`)}`;
+  const coords = `${escapeHtml(lat)}, ${escapeHtml(lon)}`;
+  const mapImageUrl = escapeHtml(buildMapImageUrl(lat, lon));
+  const photoBlock = imageUrl
+    ? `
+          <tr>
+            <td style="padding:32px 32px 0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #eef0f4;border-radius:14px;overflow:hidden;box-shadow:0 4px 14px rgba(20,26,44,0.08);">
+                <tr>
+                  <td bgcolor="#e8eaf0" align="center" style="background-color:#e8eaf0;line-height:0;">
+                    <img src="${escapeHtml(imageUrl)}" width="${PHOTO_WIDTH}" alt="Foto de ${safeName}" style="display:block;width:100%;max-width:${PHOTO_WIDTH}px;height:auto;border:0;outline:none;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#5a6274;text-align:center;" />
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 20px;background-color:#ffffff;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-family:Helvetica,Arial,sans-serif;">
+                          <div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a93a5;">¿Has visto a</div>
+                          <div style="font-size:20px;line-height:26px;font-weight:bold;color:#1b2233;padding-top:2px;">${safeName}?</div>
+                        </td>
+                        <td align="right" style="vertical-align:middle;">
+                          <span style="display:inline-block;background-color:#fff0f3;color:#f0326d;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:6px 12px;border-radius:999px;border:1px solid #ffd3dc;">Perdido</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+`
+    : '';
   return `<!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Mascota perdida: ${name}</title>
-  </head>
-  <body style="margin:0;padding:0;background-color:#f2f8f4;">
-  <img src="${esc(image)}" alt="" />
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f8f4;padding:32px 12px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(20,61,36,.08);">
- 
-            <!-- Header -->
-            <tr>
-              <td style="background-color:#1b7a45;padding:32px 32px 28px 32px;">
-                <p style="margin:0 0 10px 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:16px;letter-spacing:1.4px;text-transform:uppercase;color:#a7e6c2;">Pet Radar &middot; Alerta</p>
-                <h1 style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:28px;line-height:34px;color:#ffffff;font-weight:bold;">Se busca a ${name}</h1>
-                <p style="margin:10px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:22px;color:#d3f3e0;">Un ${esc(type.toLowerCase())} se ha perdido cerca de tu zona. Si lo ves, comunícate de inmediato.</p>
-              </td>
-            </tr>
- 
-            <!-- Detalles -->
-            <tr>
-              <td style="padding:28px 32px 8px 32px;">
-                <h2 style="margin:0 0 8px 0;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;letter-spacing:1px;text-transform:uppercase;color:#1b7a45;">Datos de la mascota</h2>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-${row('Nombre', createLostPetDto.name)}
-${row('Tipo', type)}
-${row('Raza', race)}
-${row('Color', color)}
-${row('Edad', ageLabel)}
-                </table>
-              </td>
-            </tr>
- 
-            <!-- Ubicación -->
-            <tr>
-              <td style="padding:28px 32px 8px 32px;">
-                <h2 style="margin:0 0 12px 0;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;letter-spacing:1px;text-transform:uppercase;color:#1b7a45;">Última ubicación</h2>
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eaf6ee;border-radius:14px;">
-                  <tr>
-                    <td style="padding:8px;">
-                      <a href="${mapsUrl}" target="_blank" style="display:block;text-decoration:none;">
-                        <img src="${imageUrl}" width="496" alt="Mapa de la última ubicación de ${name}" style="display:block;width:100%;max-width:496px;height:auto;border:0;outline:none;border-radius:10px;" />
-                      </a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding:4px 16px 20px 16px;">
-                      <p style="margin:0 0 14px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:19px;color:#4f7a5f;">Zona aproximada donde se vio a ${name} por última vez.</p>
-                      <a href="${mapsUrl}" target="_blank" style="display:inline-block;background-color:#ffffff;border:2px solid #1b7a45;color:#1b7a45;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:18px;font-weight:bold;text-decoration:none;padding:11px 26px;border-radius:999px;">Ver en Google Maps &rarr;</a>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
- 
-            <!-- Contacto -->
-            <tr>
-              <td style="padding:24px 32px 8px 32px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eaf6ee;border-radius:12px;">
-                  <tr>
-                    <td align="center" style="padding:24px;">
-                      <p style="margin:0 0 6px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:18px;letter-spacing:.6px;text-transform:uppercase;color:#4f7a5f;">Contacto del dueño</p>
-                      <p style="margin:0 0 18px 0;font-family:Helvetica,Arial,sans-serif;font-size:24px;line-height:30px;color:#143d24;font-weight:bold;">${phone}</p>
-                      <a href="tel:${phone}" style="display:inline-block;background-color:#1b7a45;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:20px;font-weight:bold;text-decoration:none;padding:14px 32px;border-radius:999px;">Llamar ahora</a>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
- 
-            <!-- Footer -->
-            <tr>
-              <td style="padding:24px 32px 32px 32px;">
-                <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#8aa694;text-align:center;">Recibiste este correo porque formas parte de la red de alertas de Pet Radar.</p>
-              </td>
-            </tr>
- 
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Se busca: ${safeName}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f2f4f8;">
+  <div style="display:none;font-size:1px;color:#f2f4f8;max-height:0;overflow:hidden;">Se busca a ${safeName}, ${safeType} ${escapeHtml(race)} de color ${escapeHtml(color)}. Ayúdanos a encontrarlo.</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f4f8;padding:32px 12px;">
+    <tr>
+      <td align="center">
+
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background-color:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 28px rgba(20,26,44,0.10);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#ff5a5f;background-image:linear-gradient(135deg,#ff5a5f 0%,#f0326d 55%,#8b2ae0 100%);padding:36px 32px;text-align:center;">
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:bold;letter-spacing:3px;text-transform:uppercase;color:#ffe3e4;">Pet Radar · Alerta activa</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:40px;line-height:48px;font-weight:bold;color:#ffffff;padding-top:10px;">🐾 Se busca</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:22px;line-height:30px;color:#ffffff;padding-top:4px;">${safeName} necesita volver a casa</div>
+            </td>
+          </tr>
+${photoBlock}
+          <!-- Intro -->
+          <tr>
+            <td style="padding:32px 32px 8px 32px;">
+              <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:26px;color:#4a5265;">
+                Se reportó como perdido a <strong style="color:#1b2233;">${safeName}</strong>, un ${safeType} cerca de tu zona.
+                Si lo has visto, cualquier dato cuenta. Aquí están sus señas:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Details -->
+          <tr>
+            <td style="padding:20px 32px 8px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fafbfd;border:1px solid #eef0f4;border-radius:14px;">
+${detailRow('Nombre', safeName)}
+${detailRow('Especie', safeType)}
+${detailRow('Raza', escapeHtml(race))}
+${detailRow('Color', escapeHtml(color))}
+${detailRow('Edad', formatAge(age))}
+                <tr>
+                  <td style="padding:12px 20px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a93a5;white-space:nowrap;">Contacto</td>
+                  <td style="padding:12px 20px;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:bold;text-align:right;">
+                    <a href="tel:${phoneHref}" style="color:#f0326d;text-decoration:none;">${safePhone}</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Map card -->
+          <tr>
+            <td style="padding:24px 32px 0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #eef0f4;border-radius:14px;overflow:hidden;">
+                <tr>
+                  <td style="padding:14px 20px 12px 20px;background-color:#ffffff;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#8a93a5;">Última ubicación conocida</div>
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;color:#1b2233;padding-top:4px;">${coords}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td bgcolor="#e8eaf0" style="background-color:#e8eaf0;line-height:0;">
+                    <a href="${mapsUrl}" target="_blank" style="display:block;text-decoration:none;">
+                      <img src="${mapImageUrl}" width="${MAP_WIDTH}" height="${MAP_HEIGHT}" alt="Mapa de la última ubicación de ${safeName} en ${coords}" style="display:block;width:100%;max-width:${MAP_WIDTH}px;height:auto;border:0;outline:none;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#5a6274;text-align:center;" />
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color:#f7f8fb;padding:6px 12px;font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#9aa2b4;text-align:right;">© Mapbox · © OpenStreetMap</td>
+                </tr>
+                <tr>
+                  <td style="background-color:#1b2233;padding:0;">
+                    <a href="${mapsUrl}" target="_blank" style="display:block;padding:16px 20px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;text-align:center;">📍 Abrir en Google Maps &rsaquo;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Call CTA -->
+          <tr>
+            <td style="padding:16px 32px 0 32px;" align="center">
+              <a href="tel:${phoneHref}" style="display:block;background-color:#f0326d;color:#ffffff;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:bold;text-decoration:none;padding:16px 24px;border-radius:12px;text-align:center;">📞 Llamar a ${safePhone}</a>
+            </td>
+          </tr>
+
+          <!-- Tip -->
+          <tr>
+            <td style="padding:24px 32px 32px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fff5f6;border-left:4px solid #ff5a5f;border-radius:10px;">
+                <tr>
+                  <td style="padding:16px 18px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:22px;color:#7a3040;">
+                    <strong>¿Lo viste?</strong> No lo persigas. Mantén la distancia, toma una foto si puedes y llama al número de contacto con la hora y el lugar exactos.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#1b2233;padding:24px 32px;text-align:center;">
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:bold;color:#ffffff;">Pet Radar 🐾</div>
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:20px;color:#8a93a5;padding-top:6px;">
+                Recibes esta alerta porque estás cerca de la zona del reporte (${coords}).
+              </div>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
 </html>`;
 };
